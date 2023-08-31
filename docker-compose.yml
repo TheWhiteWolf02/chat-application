@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    ports:
+      - 27017:27017
+    volumes:
+      - data:/data
+  groupchat:
+    build: .
+    container_name: group-chat
+    ports:
+      - 8080:8080  # Expose Spring application's port
+    depends_on:
+      - mongodb  # Ensure MongoDB container is started first
+volumes:
+  data: {}
+networks:
+  default:
+    name: mongodb_network
