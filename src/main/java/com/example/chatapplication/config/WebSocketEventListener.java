@@ -1,5 +1,7 @@
 package com.example.chatapplication.config;
 
+import com.example.chatapplication.service.MessageService;
+import lombok.AllArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
@@ -13,10 +15,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Component
-@RequiredArgsConstructor
+@AllArgsConstructor
 @Slf4j
 public class WebSocketEventListener {
-    private final SimpMessageSendingOperations messageTemplate;
+    private SimpMessageSendingOperations messageTemplate;
+    private MessageService messageService;
 
     @EventListener
     public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
@@ -27,6 +30,7 @@ public class WebSocketEventListener {
             log.info("User disconnected: {}", username);
             var chatMessage = ChatMessage.builder().type(MessageType.LEAVE).sender(username).build();
             messageTemplate.convertAndSend("/topic/public", chatMessage);
+            messageService.createMessage(chatMessage);
         }
     }
 }
