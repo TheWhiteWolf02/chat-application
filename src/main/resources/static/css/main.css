@@ -207,9 +207,9 @@ button.accent {
     color: #43464b;
 }
 
-#chat-page .date-stamp {
+#chat-page .chat-message .date-stamp {
     float: right;
-    color: gray;
+    color: #777;
     font-size: 12px;
     margin-left: 10px;
 }

@@ -1,17 +1,17 @@
 'use strict';
 
-var usernamePage = document.querySelector('#username-page');
-var chatPage = document.querySelector('#chat-page');
-var usernameForm = document.querySelector('#usernameForm');
-var messageForm = document.querySelector('#messageForm');
-var messageInput = document.querySelector('#message');
-var messageArea = document.querySelector('#messageArea');
-var connectingElement = document.querySelector('.connecting');
+const usernamePage = document.querySelector('#username-page');
+const chatPage = document.querySelector('#chat-page');
+const usernameForm = document.querySelector('#usernameForm');
+const messageForm = document.querySelector('#messageForm');
+const messageInput = document.querySelector('#message');
+const messageArea = document.querySelector('#messageArea');
+const connectingElement = document.querySelector('.connecting');
 
-var stompClient = null;
-var username = null;
+let stompClient = null;
+let username = null;
 
-var colors = [
+const colors = [
     '#2196F3', '#32c787', '#00BCD4', '#ff5652',
     '#ffc107', '#ff85af', '#FF9800', '#39bbb0'
 ];
@@ -23,7 +23,7 @@ function connect(event) {
         usernamePage.classList.add('hidden');
         chatPage.classList.remove('hidden');
 
-        var socket = new SockJS('/ws');
+        const socket = new SockJS('/ws');
         stompClient = Stomp.over(socket);
 
         stompClient.connect({}, onConnected, onError);
@@ -31,15 +31,29 @@ function connect(event) {
     event.preventDefault();
 }
 
-function onConnected() {
-    // Subscribe to the Public Topic
-    stompClient.subscribe('/topic/public', onMessageReceived);
+function onConnected(options) {
+    // receive previous messages
+    const subscription = stompClient.subscribe("/topic/previous-messages", function (message) {
+        const previousMessages = JSON.parse(message.body);
 
-    // Tell your username to the server
-    stompClient.send("/app/groupchat.addUser",
-        {},
-        JSON.stringify({ sender: username, type: 'JOIN' })
-    )
+        // first load all previous messages
+        previousMessages.forEach(msg => {
+            createMessage(msg);
+        })
+
+        // then announce your username to the server
+        stompClient.send("/app/groupchat.addUser",
+            {},
+            JSON.stringify({ sender: username, type: 'JOIN' })
+        )
+
+        // unsubscribe because we only need to do it once per user. otherwise, new users joining in would
+        // result in unwanted "previous messages"
+        subscription.unsubscribe();
+    });
+
+    stompClient.subscribe('/topic/public', onMessageReceived);
+    stompClient.send("/app/get-previous-messages", {}, {});
 
     connectingElement.classList.add('hidden');
 }
@@ -49,32 +63,38 @@ function onError(error) {
     connectingElement.style.color = 'red';
 }
 
+function onMessageReceived(payload) {
+    const message = JSON.parse(payload.body);
+    createMessage(message);
+}
+
 function sendMessage(event) {
-    var messageContent = messageInput.value.trim();
+    const messageContent = messageInput.value.trim();
     if (messageContent && stompClient) {
-        var chatMessage = {
+        const chatMessage = {
             sender: username,
             content: messageInput.value,
             type: 'CHAT',
-            date: new Date()
+            timestamp: new Date()
         };
+
         stompClient.send("/app/groupchat.sendMessage", {}, JSON.stringify(chatMessage));
         messageInput.value = '';
     }
     event.preventDefault();
 }
 
-function onMessageReceived(payload) {
-    var message = JSON.parse(payload.body);
-
-    var messageElement = document.createElement('li');
+function createMessage(message) {
+    let messageText;
+    let textElement;
+    const messageElement = document.createElement('li');
 
     if (message.type === 'JOIN') {
         messageElement.classList.add('event-message');
         message.content = message.sender + ' joined!';
 
-        var textElement = document.createElement('p');
-        var messageText = document.createTextNode(message.content);
+        textElement = document.createElement('p');
+        messageText = document.createTextNode(message.content);
         textElement.appendChild(messageText);
 
         messageElement.appendChild(textElement);
@@ -82,40 +102,58 @@ function onMessageReceived(payload) {
         messageElement.classList.add('event-message');
         message.content = message.sender + ' left!';
 
-        var textElement = document.createElement('p');
-        var messageText = document.createTextNode(message.content);
+        textElement = document.createElement('p');
+        messageText = document.createTextNode(message.content);
         textElement.appendChild(messageText);
 
         messageElement.appendChild(textElement);
     } else {
         messageElement.classList.add('chat-message');
 
-        var avatarElement = document.createElement('i');
-        var avatarText = document.createTextNode(message.sender[0]);
+        // create avatar element
+        const avatarElement = document.createElement('i');
+        const avatarText = document.createTextNode(message.sender[0]);
         avatarElement.appendChild(avatarText);
         avatarElement.style['background-color'] = getAvatarColor(message.sender);
 
-        var contentElement = document.createElement('div');
+        const contentElement = document.createElement('div');
         contentElement.classList.add('content');
 
-        var usernameElement = document.createElement('span');
-        var usernameText = document.createTextNode(message.sender);
+        // create username element
+        const usernameElement= document.createElement('span');
+        let usernameString = String(message.sender);
+        if(username === message.sender) usernameString += " (You)";
+        const usernameText= document.createTextNode(usernameString);
         usernameElement.appendChild(usernameText);
         contentElement.appendChild(usernameElement);
 
-        var dateElement = document.createElement('span');
-        dateElement.classList.add('date-stamp'); // Apply the date-stamp class
-        var dateText = document.createTextNode(message.date.toLocaleString("en-US")); // Format the date and time
+        // format timestamp
+        const timestamp = new Date(message.timestamp);
+        const options = { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric' };
+        const formattedTimestamp = timestamp.toLocaleDateString('en-US', options);
+
+        // create timestamp element
+        const dateElement = document.createElement('span');
+        const dateText = document.createTextNode(formattedTimestamp);
         dateElement.appendChild(dateText);
+        dateElement.classList.add('date-stamp'); // Apply the date-stamp class
         contentElement.appendChild(dateElement);
 
-        var textElement = document.createElement('p');
-        var messageText = document.createTextNode(message.content);
+        // create message body element
+        textElement = document.createElement('p');
+        messageText = document.createTextNode(message.content);
         textElement.appendChild(messageText);
         contentElement.appendChild(textElement);
 
+        // add everything
         messageElement.appendChild(avatarElement);
         messageElement.appendChild(contentElement);
+
+        // highlight if user's own message
+        if(username === message.sender) {
+            // TODO: beautify later
+            messageElement.style['border-color'] = '#000000';
+        }
     }
 
     messageArea.appendChild(messageElement);
@@ -123,11 +161,11 @@ function onMessageReceived(payload) {
 }
 
 function getAvatarColor(messageSender) {
-    var hash = 0;
-    for (var i = 0; i < messageSender.length; i++) {
+    let hash = 0;
+    for (let i = 0; i < messageSender.length; i++) {
         hash = 31 * hash + messageSender.charCodeAt(i);
     }
-    var index = Math.abs(hash % colors.length);
+    const index = Math.abs(hash % colors.length);
     return colors[index];
 }
 
