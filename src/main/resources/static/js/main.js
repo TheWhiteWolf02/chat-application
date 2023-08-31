@@ -128,7 +128,7 @@ function createMessage(message) {
         contentElement.appendChild(usernameElement);
 
         // format timestamp
-        const timestamp = new Date(message.timestamp);
+        const timestamp = convertUTCDateToLocalDate(new Date(message.timestamp));
         const options = { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric' };
         const formattedTimestamp = timestamp.toLocaleDateString('en-US', options);
 
@@ -167,6 +167,15 @@ function getAvatarColor(messageSender) {
     }
     const index = Math.abs(hash % colors.length);
     return colors[index];
+}
+
+function convertUTCDateToLocalDate(date) {
+    const newDate = new Date(date.getTime() + date.getTimezoneOffset() * 60 * 1000);
+    const offset = date.getTimezoneOffset() / 60;
+    const hours = date.getHours();
+    newDate.setHours(hours - offset);
+
+    return newDate;
 }
 
 usernameForm.addEventListener('submit', connect, true)
