@@ -20,7 +20,6 @@ public class GroupChatController {
     @SendTo("/topic/public")
     public ChatMessage sendMessage(
             @Payload ChatMessage chatMessage) {
-        System.out.println("notun message: " + chatMessage);
         messageService.createMessage(chatMessage);
         return chatMessage;
     }
@@ -33,7 +32,6 @@ public class GroupChatController {
         if(headerAccessor.getSessionAttributes() != null) {
             headerAccessor.getSessionAttributes().put("username", chatMessage.getSender());
         }
-        System.out.println("notun user: " + chatMessage);
         messageService.createMessage(chatMessage);
         return chatMessage;
     }
@@ -41,7 +39,6 @@ public class GroupChatController {
     @MessageMapping("/get-previous-messages")
     @SendTo("/topic/previous-messages")
     public List<ChatMessage> getPreviousMessages() {
-        System.out.println("puran message request");
         return messageService.getAllMessages();
     }
 }

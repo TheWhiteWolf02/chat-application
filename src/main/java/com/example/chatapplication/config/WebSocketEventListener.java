@@ -11,7 +11,6 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import com.example.chatapplication.entity.ChatMessage;
 import com.example.chatapplication.entity.MessageType;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Component

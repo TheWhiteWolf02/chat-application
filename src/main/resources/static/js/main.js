@@ -11,10 +11,20 @@ const connectingElement = document.querySelector('.connecting');
 let stompClient = null;
 let username = null;
 
+// colors for user avatars
 const colors = [
     '#2196F3', '#32c787', '#00BCD4', '#ff5652',
     '#ffc107', '#ff85af', '#FF9800', '#39bbb0'
 ];
+
+function getAvatarColor(messageSender) {
+    let hash = 0;
+    for (let i = 0; i < messageSender.length; i++) {
+        hash = 31 * hash + messageSender.charCodeAt(i);
+    }
+    const index = Math.abs(hash % colors.length);
+    return colors[index];
+}
 
 function connect(event) {
     username = document.querySelector('#name').value.trim();
@@ -38,7 +48,7 @@ function onConnected(options) {
 
         // first load all previous messages
         previousMessages.forEach(msg => {
-            createMessage(msg);
+            loadMessage(msg);
         })
 
         // then announce your username to the server
@@ -65,9 +75,10 @@ function onError(error) {
 
 function onMessageReceived(payload) {
     const message = JSON.parse(payload.body);
-    createMessage(message);
+    loadMessage(message);
 }
 
+// send normal message for user
 function sendMessage(event) {
     const messageContent = messageInput.value.trim();
     if (messageContent && stompClient) {
@@ -84,30 +95,13 @@ function sendMessage(event) {
     event.preventDefault();
 }
 
-function createMessage(message) {
+function loadMessage(message) {
     let messageText;
     let textElement;
     const messageElement = document.createElement('li');
 
-    if (message.type === 'JOIN') {
-        messageElement.classList.add('event-message');
-        message.content = message.sender + ' joined!';
-
-        textElement = document.createElement('p');
-        messageText = document.createTextNode(message.content);
-        textElement.appendChild(messageText);
-
-        messageElement.appendChild(textElement);
-    } else if (message.type === 'LEAVE') {
-        messageElement.classList.add('event-message');
-        message.content = message.sender + ' left!';
-
-        textElement = document.createElement('p');
-        messageText = document.createTextNode(message.content);
-        textElement.appendChild(messageText);
-
-        messageElement.appendChild(textElement);
-    } else {
+    // normal chat messages
+    if(message.type === 'CHAT') {
         messageElement.classList.add('chat-message');
 
         // create avatar element
@@ -151,22 +145,23 @@ function createMessage(message) {
 
         // highlight if user's own message
         if(username === message.sender) {
-            // TODO: beautify later
             messageElement.style['border-color'] = '#000000';
         }
+    } else {
+        // user joined or left messages
+        messageElement.classList.add('event-message');
+        if (message.type === 'JOIN') message.content = message.sender + ' joined!';
+        else message.content = message.sender + ' left!';
+
+        textElement = document.createElement('p');
+        messageText = document.createTextNode(message.content);
+        textElement.appendChild(messageText);
+
+        messageElement.appendChild(textElement);
     }
 
     messageArea.appendChild(messageElement);
     messageArea.scrollTop = messageArea.scrollHeight;
-}
-
-function getAvatarColor(messageSender) {
-    let hash = 0;
-    for (let i = 0; i < messageSender.length; i++) {
-        hash = 31 * hash + messageSender.charCodeAt(i);
-    }
-    const index = Math.abs(hash % colors.length);
-    return colors[index];
 }
 
 function convertUTCDateToLocalDate(date) {
